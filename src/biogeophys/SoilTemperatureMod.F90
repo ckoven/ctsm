@@ -599,6 +599,7 @@ contains
     use landunit_varcon , only : istice_mec, istwet
     use column_varcon   , only : icol_roof, icol_sunwall, icol_shadewall, icol_road_perv, icol_road_imperv
     use clm_varctl      , only : iulog
+    use clm_time_manager , only : get_curr_date
     !
     ! !ARGUMENTS:
     type(bounds_type)      , intent(in)    :: bounds                   
@@ -620,6 +621,12 @@ contains
     real(r8) :: fl                        ! volume fraction of liquid or unfrozen water to total water
     real(r8) :: satw                      ! relative total water content of soil.
     real(r8) :: zh2osfc
+
+    real(r8) :: snow_diffusivity_multiplier
+    integer  :: year                            ! year (0, ...) for nstep+1
+    integer  :: mon                             ! month (1, ..., 12) for nstep+1
+    integer  :: day                             ! day of month (1, ..., 31) for nstep+1
+    integer  :: sec                             ! seconds into current date for nstep+1
     !-----------------------------------------------------------------------
 
     call t_startf( 'SoilThermProp' )
@@ -665,6 +672,14 @@ contains
       ! Urban values are from Masson et al. 2002, Evaluation of the Town Energy Balance (TEB)
       ! scheme with direct measurements from dry districts in two cities, J. Appl. Meteorol.,
       ! 41, 1011-1026.
+
+      ! snow fence parameterization for cipehr experiment
+      call get_curr_date(year, mon, day, sec)
+      if ((mon .lt. 4) .or. (mon .gt. 8)) then  ! snow shovelled on April 1
+         snow_diffusivity_multiplier = 0.5_r8
+      else
+         snow_diffusivity_multiplier = 1._r8
+      endif
 
       do j = -nlevsno+1,nlevgrnd
          do fc = 1, num_nolakec
@@ -716,7 +731,7 @@ contains
             ! Only examine levels from snl(c)+1 -> 0 where snl(c) < 1
             if (snl(c)+1 < 1 .AND. (j >= snl(c)+1) .AND. (j <= 0)) then  
                bw(c,j) = (h2osoi_ice(c,j)+h2osoi_liq(c,j))/(frac_sno(c)*dz(c,j))
-               thk(c,j) = tkair + (7.75e-5_r8 *bw(c,j) + 1.105e-6_r8*bw(c,j)*bw(c,j))*(tkice-tkair)
+               thk(c,j) = tkair + snow_diffusivity_multiplier * (7.75e-5_r8 *bw(c,j) + 1.105e-6_r8*bw(c,j)*bw(c,j))*(tkice-tkair)
             end if
 
          end do
