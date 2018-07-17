@@ -1689,6 +1689,7 @@ contains
        this%ndeploy_patch(i)                             = value_patch
        this%wood_harvestn_patch(i)                       = value_patch
        this%fire_nloss_patch(i)                          = value_patch
+       this%litfall_n_patch(i)                           = value_patch       
 
        this%crop_seedn_to_leaf_patch(i)                  = value_patch
        this%grainn_to_cropprodn_patch(i)                 = value_patch
