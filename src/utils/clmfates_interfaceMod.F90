@@ -47,6 +47,7 @@ module CLMFatesInterfaceMod
    use clm_varctl        , only : fates_parteh_mode
    use clm_varctl        , only : use_fates_spitfire
    use clm_varctl        , only : use_fates_planthydro
+   use clm_varctl        , only : use_fates_cohort_age_tracking
    use clm_varctl        , only : use_fates_ed_st3
    use clm_varctl        , only : use_fates_ed_prescribed_phys
    use clm_varctl        , only : use_fates_logging
@@ -245,6 +246,7 @@ contains
       integer                                        :: pass_ed_prescribed_phys
       integer                                        :: pass_logging
       integer                                        :: pass_planthydro
+      integer                                        :: pass_cohort_age_tracking
       integer                                        :: pass_inventory_init
       integer                                        :: pass_is_restart
       integer                                        :: nc        ! thread index
@@ -339,6 +341,13 @@ contains
          pass_planthydro = 0
       end if
       call set_fates_ctrlparms('use_planthydro',ival=pass_planthydro)
+
+      if(use_fates_cohort_age_tracking) then
+         pass_cohort_age_tracking = 1
+      else
+         pass_cohort_age_tracking = 0
+      end if
+      call set_fates_ctrlparms('use_cohort_age_tracking',ival=pass_cohort_age_tracking)
 
       if(use_fates_logging) then
          pass_logging = 1
@@ -1428,6 +1437,13 @@ contains
      do s = 1, this%fates(nc)%nsites
         ! filter flag == 1 means that this patch has not been called for photosynthesis
         this%fates(nc)%bc_in(s)%filter_photo_pa(:) = 1
+
+        ! set transpiration input boundary condition to zero. The exposed
+        ! vegetation filter may not even call every patch.
+        if (use_fates_planthydro) then
+            this%fates(nc)%bc_in(s)%qflx_transp_pa(:) = 0._r8
+        end if
+
      end do
   end subroutine prep_canopyfluxes
 
@@ -1888,6 +1904,7 @@ contains
          this%fates(nc)%bc_in(s)%tot_litc     = totlitc(c)
       end do
       
+      
       ! Update history variables that track these variables
       call this%fates_hist%update_history_cbal(nc, &
             this%fates(nc)%nsites,  &
@@ -1943,6 +1960,7 @@ contains
    use FatesIOVariableKindMod, only : patch_r8, patch_ground_r8, patch_size_pft_r8
    use FatesIOVariableKindMod, only : site_r8, site_ground_r8, site_size_pft_r8
    use FatesIOVariableKindMod, only : site_size_r8, site_pft_r8, site_age_r8
+   use FatesIOVariableKindMod, only : site_coage_r8, site_coage_pft_r8
    use FatesIOVariableKindMod, only : site_fuel_r8, site_cwdsc_r8, site_scag_r8
    use FatesIOVariableKindMod, only : site_scagpft_r8, site_agepft_r8
    use FatesIOVariableKindMod, only : site_can_r8, site_cnlf_r8, site_cnlfpft_r8
@@ -2078,11 +2096,14 @@ contains
                               ptr_patch=this%fates_hist%hvars(ivar)%r82d,    & 
                               default=trim(vdefault))
            
+        
         case(site_ground_r8, site_size_pft_r8, site_size_r8, site_pft_r8, &
-             site_age_r8, site_height_r8, site_fuel_r8, site_cwdsc_r8, &
+             site_age_r8, site_height_r8, site_coage_r8,site_coage_pft_r8, &
+             site_fuel_r8, site_cwdsc_r8, &
              site_can_r8,site_cnlf_r8, site_cnlfpft_r8, site_scag_r8, & 
              site_scagpft_r8, site_agepft_r8, site_elem_r8, site_elpft_r8, &
              site_elcwd_r8, site_elage_r8)
+
 
            d_index = this%fates_hist%dim_kinds(dk_index)%dim2_index
            dim2name = this%fates_hist%dim_bounds(d_index)%name
@@ -2099,6 +2120,7 @@ contains
         end select
           
       end associate
+
    end do
  end subroutine init_history_io
 
@@ -2332,7 +2354,7 @@ contains
  subroutine hlm_bounds_to_fates_bounds(hlm, fates)
 
    use FatesIODimensionsMod, only : fates_bounds_type
-   use FatesInterfaceMod, only : nlevsclass, nlevage
+   use FatesInterfaceMod, only : nlevsclass, nlevage, nlevcoage
    use FatesInterfaceMod, only : nlevheight
    use EDtypesMod,        only : nfsc
    use FatesLitterMod,    only : ncwd
@@ -2362,6 +2384,12 @@ contains
    
    fates%size_class_begin = 1
    fates%size_class_end = nlevsclass
+
+   fates%coagepf_class_begin = 1
+   fates%coagepf_class_end = nlevcoage * numpft_fates
+
+   fates%coage_class_begin = 1
+   fates%coage_class_end = nlevcoage
 
    fates%pft_class_begin = 1
    fates%pft_class_end = numpft_fates
