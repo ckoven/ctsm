@@ -235,6 +235,7 @@ module clm_varctl
   logical, public            :: use_fates_inventory_init = .false.     ! true => initialize fates from inventory
   logical, public            :: use_fates_fixed_biogeog = .false.           ! true => use fixed biogeography mode
   logical, public            :: use_fates_nocomp = .false.           ! true => use no comopetition mode
+  logical, public            :: use_fates_bigleaf = .false.           ! true => use FATES bigleaf mode
   character(len=256), public :: fates_inventory_ctrl_filename = ''     ! filename for inventory control
 
   !----------------------------------------------------------
