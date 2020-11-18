@@ -60,6 +60,7 @@ module CLMFatesInterfaceMod
    use clm_varctl        , only : use_fates_fixed_biogeog
    use clm_varctl        , only : use_fates_nocomp
    use clm_varctl        , only : use_fates_bigleaf
+   use clm_varctl        , only : use_fates_sp
    use clm_varctl        , only : fates_inventory_ctrl_filename
  
    use clm_varcon        , only : tfrz
@@ -267,8 +268,12 @@ module CLMFatesInterfaceMod
      integer                                        :: pass_cohort_age_tracking
      integer                                        :: pass_biogeog 
      integer                                        :: pass_nocomp
+<<<<<<< HEAD
      integer                                        :: pass_bigleaf
 
+=======
+     integer                                        :: pass_sp
+>>>>>>> SP_api
 
      call t_startf('fates_globals')
 
@@ -327,12 +332,22 @@ module CLMFatesInterfaceMod
 	   end if
         call set_fates_ctrlparms('use_nocomp',ival=pass_nocomp)
 
+<<<<<<< HEAD
         if(use_fates_bigleaf)then
            pass_bigleaf = 1
 	   else
            pass_bigleaf = 0
 	   end if
         call set_fates_ctrlparms('use_bigleaf',ival=pass_bigleaf)
+=======
+        if(use_fates_sp)then
+           pass_sp = 1
+              else
+           pass_sp = 0
+              end if
+        call set_fates_ctrlparms('use_sp',ival=pass_sp)
+
+>>>>>>> SP_api
 
         if(use_fates_ed_st3) then
            pass_ed_st3 = 1
@@ -701,6 +716,7 @@ module CLMFatesInterfaceMod
       
       ! !USES
       use CNFireFactoryMod, only: scalar_lightning
+      use subgridMod, only :  natveg_patch_exists
 
       ! !ARGUMENTS:
       implicit none
@@ -726,6 +742,7 @@ module CLMFatesInterfaceMod
       integer  :: p                        ! HLM patch index
       integer  :: nlevsoil                 ! number of soil layers at the site
       integer  :: nld_si                   ! site specific number of decomposition layers
+      integer  :: ft                        ! plant functional type
       real(r8), pointer :: lnfm24(:)
       integer  :: ier
       integer  :: begg,endg
@@ -803,7 +820,28 @@ module CLMFatesInterfaceMod
                   atm2lnd_inst%wind24_patch(p)
 
          end do
-         
+
+         ! Here we use the logic of setting each patch LAI properties for SP mode
+         ! using the same indexing system as above. When we set pft_areafrac, in the initialization
+         ! phase, we set one value for each PFT, but by the time we set these values, we've already 
+         ! got rid of the PFTs that have no area, so we don'tneed a whole grid x PFT array, just a grid x patchno array
+
+         ! Here we use the same logic as the pft_areafrac initialization to get an array with values for each pft
+         ! in FATES, some of the HLM PFTs may be aggregated, to the number of patches may be different from the 
+         ! number of FATES PFTs. 
+
+         if(use_fates_sp)then
+           do p = natpft_lb,natpft_ub-1 !set of pfts in HLM
+             ft = p-natpft_lb+1 ! pfts ordered from 1. 
+             if (natveg_patch_exists(g, p)) then
+!              this%fates(nc)%bc_in(s)%pft_areafrac(ft)=wt_nat_patch(g,p)
+               this%fates(nc)%bc_in(s)%hlm_sp_tlai(ft) = 5.0_r8
+               this%fates(nc)%bc_in(s)%hlm_sp_tsai(ft) = 1.0_r8
+               this%fates(nc)%bc_in(s)%hlm_sp_htop(ft) = 20.0_r8
+             end if ! patch exists
+           end do ! p
+         end if ! SP
+
          if(use_fates_planthydro)then
             this%fates(nc)%bc_in(s)%hksat_sisl(1:nlevsoil)  = soilstate_inst%hksat_col(c,1:nlevsoil)
             this%fates(nc)%bc_in(s)%watsat_sisl(1:nlevsoil) = soilstate_inst%watsat_col(c,1:nlevsoil)
